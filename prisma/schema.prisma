@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model State {
+  id           Int      @id @default(autoincrement())
+  name         String
+  slug         String   @unique // e.g., 'california'
+  abbreviation String   @unique // e.g., 'CA'
+  cities       City[]
+  providers    Provider[]
+}
+
+model City {
+  id            Int            @id @default(autoincrement())
+  name          String
+  slug          String         // e.g., 'los-angeles'
+  stateId       Int
+  state         State          @relation(fields: [stateId], references: [id])
+  lat           Float?
+  lng           Float?
+  population    Int?
+  neighborhoods Neighborhood[]
+  providers     Provider[]
+
+  @@unique([stateId, slug])
+}
+
+model Neighborhood {
+  id        Int        @id @default(autoincrement())
+  name      String
+  slug      String
+  cityId    Int
+  city      City       @relation(fields: [cityId], references: [id])
+  providers Provider[]
+
+  @@unique([cityId, slug])
+}
+
+model Therapy {
+  id                Int               @id @default(autoincrement())
+  name              String
+  slug              String            @unique // e.g., 'cbt-therapy'
+  synonyms          String?           // Almacenado como JSON string para compatibilidad simple
+  providerTherapies ProviderTherapy[]
+  
+  // Contenido de la Therapy Hub Page
+  description       String?
+}
+
+model Provider {
+  id              String             @id @default(uuid())
+  placeId         String             @unique
+  name            String
+  slug            String             @unique
+  description     String?
+  photoUrl        String?            // URL pública (local o remota)
+  googlePhotoRef  String?            // Referencia original de Google (backup)
+  
+  address         String?
+  cityId          Int?
+  city            City?              @relation(fields: [cityId], references: [id])
+  stateId         Int?
+  state           State?             @relation(fields: [stateId], references: [id])
+  neighborhoodId  Int?
+  neighborhood    Neighborhood?      @relation(fields: [neighborhoodId], references: [id])
+  
+  lat             Float?
+  lng             Float?
+  
+  rating          Float?
+  reviewCount     Int?
+  website         String?
+  phone           String?
+  
+  sourceData      String?            // Almacenado como JSON string (raw Google Places response)
+  
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
+  therapies       ProviderTherapy[]
+}
+
+model ProviderTherapy {
+  providerId      String
+  provider        Provider @relation(fields: [providerId], references: [id])
+  therapyId       Int
+  therapy         Therapy  @relation(fields: [therapyId], references: [id])
+  confidenceScore Float?   // 0.0 to 1.0 (calidad del match)
+  
+  @@id([providerId, therapyId])
+}
+
+model PageContent {
+  id          String   @id @default(uuid())
+  key         String   @unique // e.g., '/therapists/ca/santa-monica/cbt' hash
+  pageType    String   // 'city', 'therapy', 'provider', 'hub', etc.
+  html        String   // Contenido generado
+  version     String?  // Versión del script/prompt
+  promptHash  String?  // Hash del prompt usado
+  updatedAt   DateTime @updatedAt
+}
